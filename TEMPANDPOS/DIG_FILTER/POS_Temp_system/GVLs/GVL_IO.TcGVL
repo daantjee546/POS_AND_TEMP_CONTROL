@@ -19,7 +19,8 @@ VAR_GLOBAL
     xGenCtrl_Error            :BOOL;      // General Error due SERVO or HEATER Control  
 	//  
     noise_HeaterSensor        :BOOL;      // Sensor noise simulation on  
-	noise_ServoSensor         :BOOL;      // Sensor noise simulation on          
+	noise_ServoSensor         :BOOL;      // Sensor noise simulation on    
+	countBatches			  :INT;    
 	END_VAR
 	
 	
