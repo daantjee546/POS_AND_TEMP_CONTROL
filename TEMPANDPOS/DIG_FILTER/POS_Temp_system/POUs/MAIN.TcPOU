@@ -27,6 +27,7 @@ Cmd_Heater(clk:=GVL_IO.xPushButton2);   // Heater Command button for testing
 TimA(clk:=timerA.Q);
 timerA();
 
+//GIT
 // ================= START STATE SEQUENCE ======================
 //
 //   Your State machine program can be programmed here 
@@ -160,7 +161,8 @@ pidHeater(Auto_Mode:= PIDheater_on,MV_out=>HEATER_PROCESS.Tf_Heater_Input);  // 
       <LineId Id="820" Count="4" />
       <LineId Id="979" Count="1" />
       <LineId Id="978" Count="0" />
-      <LineId Id="981" Count="0" />
+      <LineId Id="998" Count="0" />
+      <LineId Id="997" Count="0" />
       <LineId Id="825" Count="4" />
       <LineId Id="896" Count="81" />
       <LineId Id="841" Count="5" />
