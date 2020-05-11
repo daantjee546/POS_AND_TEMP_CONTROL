@@ -1,0 +1,102 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.2">
+  <POU Name="SERVO_POS" Id="{23781ed3-9de5-40d0-92ee-d7d508a772fe}" SpecialFunc="None">
+    <Declaration><![CDATA[PROGRAM SERVO_POS
+VAR CONSTANT
+	nTfOrder : USINT := 2;
+	nNumOrder : USINT :=2;
+	nDenOrder : USINT :=2;
+END_VAR
+VAR_INPUT
+	Tf_SERVO_Input:LREAL;
+END_VAR
+VAR_OUTPUT
+	Tf_SERVO_Output:LREAL;
+END_VAR
+VAR
+	aNumArray    : ARRAY[0..nNumOrder] OF FLOAT; //numerator
+	aDenArray    : ARRAY[0..nDenOrder] OF FLOAT; //denumerator
+	aStructTfData: ARRAY[0..nTfOrder]  OF ST_CTRL_TRANSFERFUNCTION_1_DATA;
+	eMode        : E_CTRL_MODE;
+	stParams     : ST_CTRL_TRANSFERFUNCTION_1_PARAMS;
+	eErrorId     : E_CTRL_ERRORCODES;
+	bError       : BOOL;
+	fbServoX_Tf  : FB_CTRL_TRANSFERFUNCTION_1;
+	bInit        : BOOL := TRUE;
+	bPosError    :BOOL;
+	fb_Output    : LREAL;
+	Servo_ERR    : R_TRIG;
+    SensorNoise  :fbSensorNoise;
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[// IA _Cs4  2019
+// O.E Figaroa
+// This program simulates a First Order DC Servo with an Integrator
+// PLEASE DON'T CHANGE THE CODE IN THIS PROGRAM !
+// Transferfunction Servo Motor X s-domain
+//              20
+//  Gc =    -----------   [ Theta/u]    and u is proportional to angular position [Theta]
+//           0.5s^2 + s 
+//
+//= = Discrete or z-domain with  Ts = 0.01 s = = 
+//          short format
+//        0.001987 z + 0.001974
+// Gd =  ----------------------   with Ts=0.01 s
+//        z^2 - 1.98 z + 0.9802       
+// 
+//// coefficients obtained by Matlab in long format:
+//
+// numz =  [0   0.001986733067553   0.001973532271096]     
+// denz =  [1.000000000000000 -1.980198673306755   0.980198673306755]
+// ==
+
+//========================================
+IF bInit THEN
+// = numerator ===
+aNumArray[0] := 0.001973532271096; 
+aNumArray[1] := 0.001986733067553; 
+aNumArray[2] := 0.000;
+// = denumerator
+aDenArray[0] := 0.980198673306755;
+aDenArray[1] := -1.980198673306755;
+aDenArray[2] := 1.0;
+stParams.tTaskCycleTime := T#10MS;
+stParams.tCtrlCycleTime := T#10MS;
+stParams.nOrderOfTheTransferfunction := nTfOrder;
+eMode := eCTRL_MODE_ACTIVE;
+bInit := FALSE;
+END_IF
+stParams.pNumeratorArray_ADR := ADR(aNumArray);
+stParams.nNumeratorArray_SIZEOF := SIZEOF(aNumArray);
+stParams.pDenominatorArray_ADR := ADR(aDenArray);
+stParams.nDenominatorArray_SIZEOF := SIZEOF(aDenArray);
+stParams.pTransferfunction1Data_ADR := ADR(aStructTfData);
+stParams.nTransferfunction1Data_SIZEOF := SIZEOF(aStructTfData);
+
+// Execute TF 
+
+fbServoX_Tf (fIn :=Tf_SERVO_Input,
+eMode := eMode,
+stParams := stParams,
+fOut => fb_Output,
+eErrorId => eErrorId,
+bError => bError);
+// Sensor Noises
+SensorNoise(Ampl:=0.3);
+SensorNoise(noise_enable:=GVL_IO.noise_ServoSensor);
+Tf_SERVO_Output:=fb_Output+ SensorNoise.noise_level ;
+GVL_IO.Output_ServoX:=LREAL_TO_REAL(Tf_SERVO_Output);	
+
+Servo_ERR(CLK:=(ABS(GVL_IO.Output_ServoX) > 50),Q=>GVL_IO.xGenCtrl_Error);]]></ST>
+    </Implementation>
+    <LineIds Name="SERVO_POS">
+      <LineId Id="597" Count="51" />
+      <LineId Id="655" Count="0" />
+      <LineId Id="654" Count="0" />
+      <LineId Id="652" Count="0" />
+      <LineId Id="649" Count="2" />
+      <LineId Id="519" Count="0" />
+    </LineIds>
+  </POU>
+</TcPlcObject>

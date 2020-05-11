@@ -1,0 +1,99 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.2">
+  <POU Name="HEATER_PROCESS" Id="{4cf2173f-cf55-4722-85db-81b8b28a4a7c}" SpecialFunc="None">
+    <Declaration><![CDATA[PROGRAM HEATER_PROCESS
+VAR CONSTANT
+	nTfOrder : USINT := 2;
+	nNumOrder : USINT :=2;
+	nDenOrder : USINT :=2;
+END_VAR
+VAR_INPUT
+	Tf_Heater_Input : LREAL;
+END_VAR
+VAR_OUTPUT
+	Tf_Heater_Output : LREAL;
+END_VAR
+VAR
+	aNumArray        : ARRAY[0..nNumOrder] OF FLOAT; //numerator
+	aDenArray        : ARRAY[0..nDenOrder] OF FLOAT; //denumerator
+	aStructTfData    : ARRAY[0..nTfOrder]  OF ST_CTRL_TRANSFERFUNCTION_1_DATA;
+	eMode            : E_CTRL_MODE;
+	stParams         : ST_CTRL_TRANSFERFUNCTION_1_PARAMS;
+	eErrorId         : E_CTRL_ERRORCODES;
+	bError           : BOOL;
+	fbHeater_Tf      : FB_CTRL_TRANSFERFUNCTION_1;
+	bInit            : BOOL := TRUE;
+	fb_Output        : LREAL;
+	SensorNoise      :fbSensorNoise;	 
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[// IA _Cs4  2019
+// O.E Figaroa
+// This program simulates a Second Order Process aka Heater Process.
+// PLEASE DON'T CHANGE THE CODE IN THIS PROGRAM !
+// Transferfunction Heater
+//                  5
+///  G(s)=  ---------------------    [ Temp / Temp ]
+//          256 s^2 + 100 s + 5
+//= = = = = = = = = = = = = = = = 
+// Discrete transfer function of the Heater
+//
+//
+//          9.753E-07 z + 9.74E-07
+// G(z)=  ----------------------
+//          z^2 - 1.996 z + 0.9961
+//
+// Obtained coefficients in long formats for accuracy purposes
+//
+// numerator =    1.0e-06 * [0   0.975292016341129   0.974022931328863]
+// denumerator = [1.000000000000000  -1.996099420155170   0.996101369470118]
+
+IF bInit THEN
+// = numerator ===
+aNumArray[0] := 0.974022931328863 * 1E-06;
+aNumArray[1] := 0.975292016341129 * 1E-06;
+aNumArray[2] := 0.000;
+// = denumerator
+aDenArray[0] := 0.996101369470118;
+aDenArray[1] := -1.996099420155170;
+aDenArray[2] := 1.00000;
+// 
+
+stParams.tTaskCycleTime := T#10MS;
+stParams.tCtrlCycleTime := T#10MS;
+stParams.nOrderOfTheTransferfunction := nTfOrder;
+eMode := eCTRL_MODE_ACTIVE;
+bInit := FALSE;
+END_IF
+
+stParams.pNumeratorArray_ADR := ADR(aNumArray);
+stParams.nNumeratorArray_SIZEOF := SIZEOF(aNumArray);
+stParams.pDenominatorArray_ADR := ADR(aDenArray);
+stParams.nDenominatorArray_SIZEOF := SIZEOF(aDenArray);
+stParams.pTransferfunction1Data_ADR := ADR(aStructTfData);
+stParams.nTransferfunction1Data_SIZEOF := SIZEOF(aStructTfData);
+// Execute TF 
+fbHeater_Tf (fIn := Tf_Heater_Input,
+eMode := eMode,
+stParams := stParams,
+fOut => fb_Output,
+eErrorId => eErrorId,
+bError => bError);
+//
+//
+SensorNoise(Ampl:=1.5);
+SensorNoise(noise_enable:=GVL_IO.noise_HeaterSensor) ; // Sensor Noise 
+Tf_Heater_Output:= fb_Output + SensorNoise.noise_level;
+
+GVL_IO.Output_Heater:=LREAL_TO_REAL(Tf_Heater_Output);
+IF fbHeater_Tf.fOut < 0 THEN
+	GVL_IO.Output_Heater:=0;
+END_IF]]></ST>
+    </Implementation>
+    <LineIds Name="HEATER_PROCESS">
+      <LineId Id="805" Count="60" />
+      <LineId Id="469" Count="0" />
+    </LineIds>
+  </POU>
+</TcPlcObject>

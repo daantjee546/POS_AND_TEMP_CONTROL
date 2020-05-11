@@ -1,0 +1,173 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.2">
+  <POU Name="MAIN" Id="{c14fdddc-a9e2-4b2f-95bf-7a35be57990b}" SpecialFunc="None">
+    <Declaration><![CDATA[PROGRAM MAIN
+VAR
+	PIDheater_on  : BOOL;  // PID Controller heater enabled ( Closed looop Control)
+	PIDServo_on   : BOOL := TRUE;   // PID Controller heater enabled ( Closed looop Control)
+	pidServo      : fBDISCRETE_PID;
+	pidHeater     : fBDISCRETE_PID;
+	States        : SeqState := SeqState.Ready;
+	Cmd_Servo     : R_TRIG;         // For testing Servo 
+	Cmd_Heater    : R_TRIG;         // For testing Heater
+	Cmd_ProdStart : R_TRIG;
+	Cmd_ProdStop  : R_TRIG;
+	
+	timerA: TP;
+	TimA: F_TRIG;
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[// Handling Buttons
+Cmd_ProdStart(clk:=GVL_IO.StartPr);     // Start Process
+Cmd_ProdStop(clk:=GVL_IO.StopPr);       // Stop  Process
+Cmd_Servo(clk:=GVL_IO.xPushButton1);    // Servo Command button for testing
+Cmd_Heater(clk:=GVL_IO.xPushButton2);   // Heater Command button for testing
+
+TimA(clk:=timerA.Q);
+timerA();
+
+// ================= START STATE SEQUENCE ======================
+//
+//   Your State machine program can be programmed here 
+//          following an example
+//
+CASE States OF                       // Sequence State ( ready, etc etc etc )
+	//SeqState.Ready:                  // You can change the states if you want for your own convience
+	//	GVL_IO.SetPointHeater:= 75;  // Setpoint heater 75 degrees Celsius. 
+//	
+//SeqState.Fill_A:
+		//GVL_IO .ValveA:=TRUE;    //  Open Valve A 	
+//	
+//
+
+	SeqState.Ready:
+	IF GVL_IO.StartPr = TRUE AND GVL_IO.StopPr = FALSE THEN
+		GVL_IO.SetPointHeater := 75;
+		States := SeqState.Fill_A;
+	END_IF
+	
+	SeqState.TO_INIT:
+	GVL_IO.SetPointHeater := 0;
+	IF GVL_IO.Output_ServoX > -0.4 AND GVL_IO.Output_ServoX < 0.6 THEN
+		PIDServo_on := FALSE;
+	ELSE
+		GVL_IO.SetPoint_ServoX := 0;
+		PIDServo_on := TRUE;
+	END_IF
+	
+	IF (GVL_IO.Output_Heater > 0 AND GVL_IO.Output_Heater < 1.5) AND GVL_IO.Level_S1 = TRUE AND (GVL_IO.Output_ServoX > -0.4 AND GVL_IO.Output_ServoX < 0.6) THEN
+		States := SeqState.Ready;
+	END_IF
+	
+	SeqState.Fill_A:
+	GVL_IO.ValveA := TRUE;
+	
+	IF GVL_IO.Level_S2 = FALSE THEN
+		GVL_IO.ValveA := FALSE;
+		States := SeqState.Fill_B;
+	END_IF
+	
+	SeqState.Fill_B:
+	GVL_IO.ValveB := TRUE;
+	PIDheater_on := TRUE;
+	GVL_IO.Stirrer := TRUE;
+	IF GVL_IO.Level_S3 = FALSE THEN
+		GVL_IO.ValveB := FALSE;
+		States := SeqState.Heating;
+	END_IF
+	
+	SeqState.Heating:
+	IF GVL_IO.Output_Heater > 73.5 AND GVL_IO.Output_Heater < 76.5 THEN
+		// turn on timer
+		timerA(IN:= TRUE, PT:= T#20S);
+		
+		// check timer
+		IF TimA.Q THEN	
+			States := SeqState.ToUnload;
+		END_IF
+		
+	END_IF
+	
+	SeqState.ToUnload:
+	GVL_IO.SetPoint_ServoX := 30;
+	PIDServo_on := TRUE;
+	
+	IF GVL_IO.Output_ServoX > 29.4 AND GVL_IO.Output_ServoX < 30.6 THEN
+		PIDServo_on := FALSE;
+		PIDheater_on := FALSE;
+		States := SeqState.Drain_1;
+	END_IF
+	
+	
+	SeqState.Drain_1:
+	GVL_IO.ValveC := TRUE;
+	IF GVL_IO.Level_S2 = TRUE THEN
+		States := SeqState.Drain_2;
+	END_IF
+	
+	SeqState.Drain_2:
+	GVL_IO.Stirrer := FALSE;
+	IF GVL_IO.Level_S1 = TRUE THEN
+		GVL_IO.ValveC := FALSE;
+		States := SeqState.TO_INIT;
+	END_IF
+
+	
+END_CASE
+//
+//
+// ================ END of the STATE SEQUENCES      =====================
+// 
+// =====   Executing the PID Controllers for  Position and Heater.   =======
+//
+// *************  Servo with P- Controller only  **************
+//
+IF (Cmd_Servo.Q ) THEN
+	pidServo.Setpoint:=GVL_IO.SetPoint_ServoX;  // Setpoint Servo
+END_IF
+
+pidServo.Kp:= 1;       //  Kp parameter
+// pidServo.Ki:= xxx ; //  Ki parameter
+// pidServo.Kd:= xxx ; //  Kd parameter 
+
+pidServo.MV_max_sat:=  10;   // Maximum output PID to protect the Servo
+pidServo.MV_min_sat:= -10;   // Minimum output PID    ,,     ,,
+pidServo.Yprocess_value:= LREAL_TO_REAL(SERVO_POS.Tf_SERVO_Output);
+//
+pidServo(Auto_Mode:=PIDServo_on,MV_out=>SERVO_POS.Tf_SERVO_Input);  // Calling PID function Heater
+
+// *************   Heater with P- Controller only   **********************
+//
+IF Cmd_Heater.Q THEN
+   pidHeater.Setpoint:=GVL_IO.SetPointHeater;	
+END_IF
+pidHeater.Kp:= 0.5;           //  Kp parameter
+// pidHeater.Ki:= xx ;       //  Ki parameter     
+// pidHeater.Kd:= xx ;       //  Kd parameter      
+pidHeater.MV_max_sat:= 150;  // Maximum output PID to protect the Heater
+pidHeater.MV_min_sat:= -10;  // Minimum output PID ,,     ,,
+pidHeater.Yprocess_value:=LREAL_TO_REAL( HEATER_PROCESS.Tf_Heater_Output);
+pidHeater(Auto_Mode:= PIDheater_on,MV_out=>HEATER_PROCESS.Tf_Heater_Input);  // Calling PID function Heater
+
+
+
+
+
+]]></ST>
+    </Implementation>
+    <LineIds Name="MAIN">
+      <LineId Id="820" Count="4" />
+      <LineId Id="979" Count="1" />
+      <LineId Id="978" Count="0" />
+      <LineId Id="981" Count="0" />
+      <LineId Id="825" Count="4" />
+      <LineId Id="896" Count="81" />
+      <LineId Id="841" Count="5" />
+      <LineId Id="848" Count="12" />
+      <LineId Id="862" Count="11" />
+      <LineId Id="875" Count="8" />
+      <LineId Id="5" Count="0" />
+    </LineIds>
+  </POU>
+</TcPlcObject>
