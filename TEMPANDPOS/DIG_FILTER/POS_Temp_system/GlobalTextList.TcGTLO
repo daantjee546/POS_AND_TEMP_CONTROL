@@ -46,6 +46,16 @@
               <l n="LanguageTexts" t="ArrayList" />
             </o>
             <o>
+              <v n="TextID">"782"</v>
+              <v n="TextDefault">"Average Time  %.2f"</v>
+              <l n="LanguageTexts" t="ArrayList" />
+            </o>
+            <o>
+              <v n="TextID">"632"</v>
+              <v n="TextDefault">"Batch Time  %.2f"</v>
+              <l n="LanguageTexts" t="ArrayList" />
+            </o>
+            <o>
               <v n="TextID">"528"</v>
               <v n="TextDefault">"Closed loop Servo"</v>
               <l n="LanguageTexts" t="ArrayList" />
@@ -293,6 +303,11 @@
             <o>
               <v n="TextID">"276"</v>
               <v n="TextDefault">"Tanklevel:    %.2f"</v>
+              <l n="LanguageTexts" t="ArrayList" />
+            </o>
+            <o>
+              <v n="TextID">"493"</v>
+              <v n="TextDefault">"Total Time %.2f"</v>
               <l n="LanguageTexts" t="ArrayList" />
             </o>
             <o>

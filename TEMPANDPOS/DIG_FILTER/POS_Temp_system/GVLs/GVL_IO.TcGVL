@@ -21,6 +21,9 @@ VAR_GLOBAL
     noise_HeaterSensor        :BOOL;      // Sensor noise simulation on  
 	noise_ServoSensor         :BOOL;      // Sensor noise simulation on    
 	countBatches			  :INT;    
+	batchTime				  :TIME;
+	totalTime				  :TIME;
+	averageTime			      :TIME;
 	END_VAR
 	
 	
