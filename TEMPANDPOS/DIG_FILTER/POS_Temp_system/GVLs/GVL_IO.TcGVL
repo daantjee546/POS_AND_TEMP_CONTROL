@@ -24,6 +24,7 @@ VAR_GLOBAL
 	batchTime				  :TIME;
 	totalTime				  :TIME;
 	averageTime			      :TIME;
+	wantedBatches			  :INT;
 	END_VAR
 	
 	

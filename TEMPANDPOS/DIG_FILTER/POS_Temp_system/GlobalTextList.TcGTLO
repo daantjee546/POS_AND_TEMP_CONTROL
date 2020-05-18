@@ -26,6 +26,11 @@
               <l n="LanguageTexts" t="ArrayList" />
             </o>
             <o>
+              <v n="TextID">"693"</v>
+              <v n="TextDefault">"Accept"</v>
+              <l n="LanguageTexts" t="ArrayList" />
+            </o>
+            <o>
               <v n="TextID">"228"</v>
               <v n="TextDefault">"Auto-Mode Closed loopServo"</v>
               <l n="LanguageTexts" t="ArrayList" />
@@ -93,6 +98,11 @@
             <o>
               <v n="TextID">"601"</v>
               <v n="TextDefault">"Home"</v>
+              <l n="LanguageTexts" t="ArrayList" />
+            </o>
+            <o>
+              <v n="TextID">"439"</v>
+              <v n="TextDefault">"How many batches do you want?"</v>
               <l n="LanguageTexts" t="ArrayList" />
             </o>
             <o>

@@ -3,7 +3,7 @@
   <POU Name="MAIN" Id="{c14fdddc-a9e2-4b2f-95bf-7a35be57990b}" SpecialFunc="None">
     <Declaration><![CDATA[PROGRAM MAIN
 VAR
-	PIDheater_on  : BOOL;  // PID Controller heater enabled ( Closed looop Control)
+	PIDheater_on  : BOOL := FALSE;  // PID Controller heater enabled ( Closed looop Control)
 	PIDServo_on   : BOOL := TRUE;   // PID Controller heater enabled ( Closed looop Control)
 	pidServo      : fBDISCRETE_PID;
 	pidHeater     : fBDISCRETE_PID;
@@ -48,8 +48,13 @@ CASE States OF                       // Sequence State ( ready, etc etc etc )
 //
 
 	SeqState.Ready:
-	IF GVL_IO.StartPr = TRUE AND GVL_IO.StopPr = FALSE THEN
+	IF GVL_IO.StartPr = TRUE AND GVL_IO.StopPr = FALSE AND GVL_IO.wantedBatches > 0 AND GVL_IO.wantedBatches <> GVL_IO.countBatches THEN
 		GVL_IO.countBatches := 0;
+		ADSLOGSTR(
+        msgCtrlMask := ADSLOG_MSGTYPE_HINT, 
+        msgFmtStr   := 'Test message. Parameter is %s', 
+        strArg      := 'ABC'
+    );
 		//timeBatch.ET := T#0S;
 		States := SeqState.Fill_A;
 	END_IF
@@ -57,19 +62,8 @@ CASE States OF                       // Sequence State ( ready, etc etc etc )
 	SeqState.TO_INIT:
 	Cmd_Heater(clk:=TRUE);
 	GVL_IO.SetPointHeater := 0;
-	
-	IF GVL_IO.StopPr = TRUE THEN
-		GVL_IO.countBatches := GVL_IO.countBatches  + 1;
-		States := SeqState.Ready;
-	END_IF
-	
-	IF GVL_IO.Output_ServoX > -0.4 AND GVL_IO.Output_ServoX < 0.6 THEN
-		PIDServo_on := FALSE;
-	ELSE
-		GVL_IO.SetPoint_ServoX := 0;
-		Cmd_Servo(clk:=TRUE);
-		PIDServo_on := TRUE;
-	END_IF
+	GVL_IO.SetPoint_ServoX := 0;
+	Cmd_Servo(clk:=TRUE);
 	
 	IF (GVL_IO.Output_Heater > 0 AND GVL_IO.Output_Heater < 1.5) AND GVL_IO.Level_S1 = TRUE AND (GVL_IO.Output_ServoX > -0.4 AND GVL_IO.Output_ServoX < 0.6) THEN
 		Cmd_Heater(clk:=FALSE);
@@ -86,6 +80,10 @@ CASE States OF                       // Sequence State ( ready, etc etc etc )
 		timeBatch(IN:=TRUE, PT:=T#500S);
 		
 		States := SeqState.Fill_A;
+		
+		IF GVL_IO.StopPr = TRUE OR GVL_IO.wantedBatches = GVL_IO.countBatches THEN
+			States := SeqState.Ready;
+		END_IF
 	END_IF
 	
 	SeqState.Fill_A:
@@ -99,7 +97,6 @@ CASE States OF                       // Sequence State ( ready, etc etc etc )
 	GVL_IO.ValveB := TRUE;
 	GVL_IO.SetPointHeater := 75;
 	Cmd_Heater(clk:=TRUE);
-	PIDheater_on := TRUE;
 	GVL_IO.Stirrer := TRUE;
 	IF GVL_IO.Level_S3 = FALSE THEN
 		GVL_IO.ValveB := FALSE;
@@ -122,11 +119,8 @@ CASE States OF                       // Sequence State ( ready, etc etc etc )
 	SeqState.ToUnload:
 	GVL_IO.SetPoint_ServoX := 30;
 	Cmd_Servo(clk:=TRUE);
-	PIDServo_on := TRUE;
 	
 	IF GVL_IO.Output_ServoX > 29.4 AND GVL_IO.Output_ServoX < 30.6 THEN
-		PIDServo_on := FALSE;
-		PIDheater_on := FALSE;
 		Cmd_Heater(clk:=FALSE);
 		Cmd_Servo(clk:=FALSE);
 		States := SeqState.Drain_1;
@@ -160,28 +154,32 @@ IF (Cmd_Servo.Q ) THEN
 	pidServo.Setpoint:=GVL_IO.SetPoint_ServoX;  // Setpoint Servo
 END_IF
 
-pidServo.Kp:= 1;       //  Kp parameter
-// pidServo.Ki:= xxx ; //  Ki parameter
-// pidServo.Kd:= xxx ; //  Kd parameter 
+pidServo.Kp:= 0.025 ; //  Kp parameter
+pidServo.Ki:= 0; //  Ki parameter
+pidServo.Kd:= 0  ; //  Kd parameter 
 
-pidServo.MV_max_sat:=  10;   // Maximum output PID to protect the Servo
-pidServo.MV_min_sat:= -10;   // Minimum output PID    ,,     ,,
-pidServo.Yprocess_value:= LREAL_TO_REAL(SERVO_POS.Tf_SERVO_Output);
+pidServo.MV_max_sat:=  10;   // Maximum output PID to protect the "servo amplifier"
+pidServo.MV_min_sat:= -10;   // Minimum output PID      ,,     ,, 
+pidServo.Auto_Mode:=PIDServo_on;
 //
-pidServo(Auto_Mode:=PIDServo_on,MV_out=>SERVO_POS.Tf_SERVO_Input);  // Calling PID function Heater
+pidServo(MV_out=>SERVO_POS.Tf_SERVO_Input);  // Calling PID function Heater
+// Calling the Simulated Process  SERVO_POS
+SERVO_POS(Tf_SERVO_Input:=pidservo.MV_out,Tf_SERVO_Output=>pidServo.Yprocess_value); 
 
 // *************   Heater with P- Controller only   **********************
 //
 IF Cmd_Heater.Q THEN
    pidHeater.Setpoint:=GVL_IO.SetPointHeater;	
 END_IF
-pidHeater.Kp:= 0.5;           //  Kp parameter
+pidHeater.Kp:= 1;           //  Kp parameter
 // pidHeater.Ki:= xx ;       //  Ki parameter     
 // pidHeater.Kd:= xx ;       //  Kd parameter      
 pidHeater.MV_max_sat:= 150;  // Maximum output PID to protect the Heater
 pidHeater.MV_min_sat:= -10;  // Minimum output PID ,,     ,,
-pidHeater.Yprocess_value:=LREAL_TO_REAL( HEATER_PROCESS.Tf_Heater_Output);
-pidHeater(Auto_Mode:= PIDheater_on,MV_out=>HEATER_PROCESS.Tf_Heater_Input);  // Calling PID function Heater
+pidHeater.Auto_Mode :=Pidheater_on;
+pidHeater(MV_out=>HEATER_PROCESS.Tf_Heater_Input);  // Calling PID function Heater
+// Calling the Simulated Process HEATER_PROCESS
+HEATER_PROCESS(Tf_Heater_Input:=pidheater.MV_out,Tf_Heater_Output=>pidheater.Yprocess_value);
 
 
 
@@ -199,47 +197,40 @@ pidHeater(Auto_Mode:= PIDheater_on,MV_out=>HEATER_PROCESS.Tf_Heater_Input);  // 
       <LineId Id="825" Count="4" />
       <LineId Id="896" Count="10" />
       <LineId Id="1018" Count="0" />
+      <LineId Id="1081" Count="3" />
+      <LineId Id="1080" Count="0" />
       <LineId Id="1039" Count="0" />
       <LineId Id="908" Count="3" />
       <LineId Id="1022" Count="0" />
       <LineId Id="912" Count="0" />
-      <LineId Id="1014" Count="0" />
-      <LineId Id="1006" Count="0" />
-      <LineId Id="1028" Count="0" />
-      <LineId Id="1007" Count="0" />
-      <LineId Id="913" Count="0" />
-      <LineId Id="1012" Count="0" />
-      <LineId Id="1009" Count="0" />
-      <LineId Id="914" Count="2" />
-      <LineId Id="1020" Count="0" />
-      <LineId Id="917" Count="3" />
+      <LineId Id="1147" Count="1" />
+      <LineId Id="919" Count="1" />
       <LineId Id="1023" Count="1" />
+      <LineId Id="1125" Count="1" />
+      <LineId Id="1102" Count="0" />
+      <LineId Id="1118" Count="5" />
+      <LineId Id="1103" Count="0" />
       <LineId Id="1046" Count="0" />
-      <LineId Id="1029" Count="0" />
-      <LineId Id="1047" Count="0" />
-      <LineId Id="1044" Count="0" />
-      <LineId Id="1050" Count="0" />
-      <LineId Id="1045" Count="0" />
-      <LineId Id="1043" Count="0" />
-      <LineId Id="1040" Count="0" />
-      <LineId Id="1052" Count="1" />
-      <LineId Id="1048" Count="0" />
       <LineId Id="1016" Count="0" />
+      <LineId Id="1127" Count="0" />
+      <LineId Id="1129" Count="0" />
+      <LineId Id="1131" Count="0" />
+      <LineId Id="1128" Count="0" />
       <LineId Id="922" Count="3" />
       <LineId Id="927" Count="6" />
       <LineId Id="1017" Count="0" />
       <LineId Id="1019" Count="0" />
-      <LineId Id="934" Count="13" />
+      <LineId Id="935" Count="12" />
       <LineId Id="1056" Count="0" />
       <LineId Id="948" Count="6" />
       <LineId Id="1021" Count="0" />
-      <LineId Id="955" Count="4" />
+      <LineId Id="956" Count="1" />
       <LineId Id="1026" Count="1" />
       <LineId Id="960" Count="17" />
       <LineId Id="841" Count="5" />
-      <LineId Id="848" Count="12" />
-      <LineId Id="862" Count="11" />
-      <LineId Id="875" Count="8" />
+      <LineId Id="848" Count="2" />
+      <LineId Id="1152" Count="29" />
+      <LineId Id="879" Count="4" />
       <LineId Id="5" Count="0" />
     </LineIds>
   </POU>
