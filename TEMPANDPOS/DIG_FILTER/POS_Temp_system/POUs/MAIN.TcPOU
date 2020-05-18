@@ -50,11 +50,6 @@ CASE States OF                       // Sequence State ( ready, etc etc etc )
 	SeqState.Ready:
 	IF GVL_IO.StartPr = TRUE AND GVL_IO.StopPr = FALSE AND GVL_IO.wantedBatches > 0 AND GVL_IO.wantedBatches <> GVL_IO.countBatches THEN
 		GVL_IO.countBatches := 0;
-		ADSLOGSTR(
-        msgCtrlMask := ADSLOG_MSGTYPE_HINT, 
-        msgFmtStr   := 'Test message. Parameter is %s', 
-        strArg      := 'ABC'
-    );
 		//timeBatch.ET := T#0S;
 		States := SeqState.Fill_A;
 	END_IF
@@ -197,8 +192,6 @@ HEATER_PROCESS(Tf_Heater_Input:=pidheater.MV_out,Tf_Heater_Output=>pidheater.Ypr
       <LineId Id="825" Count="4" />
       <LineId Id="896" Count="10" />
       <LineId Id="1018" Count="0" />
-      <LineId Id="1081" Count="3" />
-      <LineId Id="1080" Count="0" />
       <LineId Id="1039" Count="0" />
       <LineId Id="908" Count="3" />
       <LineId Id="1022" Count="0" />
