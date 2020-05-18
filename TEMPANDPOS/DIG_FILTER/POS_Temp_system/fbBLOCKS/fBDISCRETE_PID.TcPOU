@@ -40,13 +40,13 @@ Perr:= Setpoint - Yprocess_value; // Current error e[k]
 // 
 //        Your PID Controller algorithm starts here
 //
-// A:= (Kp +Ki*(Tsample/2)+(Kd/Tsample));
-// B:= (-Kp +Ki*(Tsample/2)-(2*Kd/Tsample));
-// C:=  Kd/Tsample;
+ A:= (Kp +Ki*(Tsample/2)+(Kd/Tsample));
+ B:= (-Kp +Ki*(Tsample/2)-(2*Kd/Tsample));
+ C:=  Kd/Tsample;
 //
-//   Mv_out:= MV_out1 + A*perr +B*perr1 + C*perr2:                                // PID Controller
+   Mv_out:= MV_out1 + A*perr +B*perr1 + C*perr2;                                // PID Controller
 //
-MV_out:=  Kp * Perr;  // P-Controller 
+//MV_out:=  Kp * Perr;  // P-Controller 
 
 // Update  samples 
 MV_out1:= MV_out;      // MV_out[k-1] 
