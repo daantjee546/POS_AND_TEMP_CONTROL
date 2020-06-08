@@ -186,6 +186,11 @@
               <l n="LanguageTexts" t="ArrayList" />
             </o>
             <o>
+              <v n="TextID">"98"</v>
+              <v n="TextDefault">"Reset"</v>
+              <l n="LanguageTexts" t="ArrayList" />
+            </o>
+            <o>
               <v n="TextID">"93"</v>
               <v n="TextDefault">"Response %s"</v>
               <l n="LanguageTexts" t="ArrayList" />

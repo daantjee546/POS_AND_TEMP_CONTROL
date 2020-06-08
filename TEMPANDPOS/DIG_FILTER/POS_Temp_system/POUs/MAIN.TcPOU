@@ -60,7 +60,7 @@ CASE States OF                       // Sequence State ( ready, etc etc etc )
 	GVL_IO.SetPoint_ServoX := 0;
 	Cmd_Servo(clk:=TRUE);
 	
-	IF (GVL_IO.Output_Heater > 0 AND GVL_IO.Output_Heater < 1.5) AND GVL_IO.Level_S1 = TRUE AND (GVL_IO.Output_ServoX > -0.4 AND GVL_IO.Output_ServoX < 0.6) THEN
+	IF (GVL_IO.Output_Heater > 0 AND GVL_IO.Output_Heater < 1.5) AND (GVL_IO.Output_ServoX > -0.4 AND GVL_IO.Output_ServoX < 0.6) THEN
 		Cmd_Heater(clk:=FALSE);
 		Cmd_Servo(clk:=FALSE);
 		
